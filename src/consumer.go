@@ -46,3 +46,16 @@ func (m *Consumer) Consume(ctx context.Context, outMessagesChannel chan<- *Messa
 		}
 	}
 }
+
+func (m *Consumer) ConsumeOne(ctx context.Context) (*Message, error) {
+	if m.targetStorage.IsEmpty() {
+		return nil, nil
+	}
+
+	message, err := m.targetStorage.GetNextMessage(ctx)
+	if err != nil && errors.Is(err, NO_MORE_MESSAGES) {
+		log.Println("No more messages to consume...")
+		return nil, nil
+	}
+	return message, err
+}

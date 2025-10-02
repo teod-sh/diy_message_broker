@@ -1,10 +1,28 @@
 package src
 
-import "sync"
+import (
+	"context"
+	"sync"
+
+	"github.com/teod-sh/diy_message_broker/protocol"
+)
+
+type runningPublisher struct {
+	inMessagesChannel <-chan *Message
+	outErrorsChannel  chan<- error
+}
+
+type runningConsumer struct {
+	outMessagesChannel chan<- *Message
+	outErrorsChannel   chan<- error
+}
 
 type MessageBrokerManager struct {
 	Topics    map[string]*Topic
 	Consumers map[string]*Consumer
+
+	runningPublishers map[string]*runningPublisher
+	runningConsumers  map[string]*runningConsumer
 
 	topicsLock    sync.Mutex
 	consumersLock sync.Mutex
@@ -48,4 +66,26 @@ func (m *MessageBrokerManager) GetConsumerByTopicName(name string) *Consumer {
 func (m *MessageBrokerManager) createNewConsumer(topicName string) *Consumer {
 	topic := m.GetTopicByName(topicName)
 	return NewConsumer(topic.GetStorageReference())
+}
+
+func (m *MessageBrokerManager) ConsumeFrom(ctx context.Context, payload *protocol.PubSubPayload) (*protocol.PubSubPayload, error) {
+	topicName := string(payload.TopicName)
+	consumer := m.GetConsumerByTopicName(topicName)
+	msg, err := consumer.ConsumeOne(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if msg != nil {
+		protocolPayload := protocol.NewPubSubPayload(topicName, msg.Key, msg.Value)
+		return protocolPayload, nil
+	}
+
+	return nil, nil
+}
+
+func (m *MessageBrokerManager) PublishTo(ctx context.Context, payload *protocol.PubSubPayload) error {
+	topicName := string(payload.TopicName)
+	msg := NewMessageFromRawBytes(payload.MsgKey, payload.Data)
+	topic := m.GetTopicByName(topicName)
+	return topic.PublishMessage(ctx, msg)
 }

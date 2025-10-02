@@ -10,6 +10,13 @@ type Message struct {
 	Value []byte
 }
 
+func NewMessageFromRawBytes(key []byte, value []byte) *Message {
+	return &Message{
+		Key:   string(key),
+		Value: value,
+	}
+}
+
 type TopicStorage struct {
 	storage       []*Message
 	lastReadIndex int

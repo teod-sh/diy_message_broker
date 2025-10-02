@@ -12,6 +12,14 @@ type Topic struct {
 }
 
 func NewTopicService(name string, topicStorage *TopicStorage) *Topic {
+	if topicStorage == nil {
+		panic("Topic storage is nil")
+	}
+
+	if name == "" {
+		panic("Topic name is empty")
+	}
+
 	return &Topic{
 		Name:    name,
 		storage: topicStorage,
@@ -37,6 +45,10 @@ func (m *Topic) WatchForMessages(ctx context.Context, inMessagesChannel <-chan *
 			time.Sleep(1 * time.Second)
 		}
 	}
+}
+
+func (m *Topic) PublishMessage(ctx context.Context, msg *Message) error {
+	return m.storage.Put(ctx, msg)
 }
 
 func (m *Topic) GetStorageReference() *TopicStorage {
